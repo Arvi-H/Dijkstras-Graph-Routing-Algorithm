@@ -1,6 +1,5 @@
 #!/usr/bin/python3
 
-
 from CS312Graph import *
 import time
 import math
@@ -38,50 +37,46 @@ class PQArray:
         pass
 
 class PQHeap:
-    def __init__(self, nodes, dist):
-        self.dist = dist 
+    def __init__(self, nodes, startNode):
         self.heap = []
         self.nodePosition = []
-        self.makeQueue(nodes, dist)
+        self.makeQueue(nodes, startNode)
 
-    def makeQueue(self, nodes, dist):
+    def makeQueue(self, nodes, startNode):  # O(n)
+        self.heap.append(startNode)
+        index = 1
         for node in nodes:
-            self.insert(node, dist)
+            nodeId = node.node_id
+            if nodeId != startNode:
+                self.heap.append(nodeId)
+                self.nodePosition.append(index)
+            else:
+                self.nodePosition.append(0)
+
+            index += 1
+
 
     def insert(self, node, dist):
-        self.bubbleUp(node, dist)
+        self.heap.append(node.node_id)
+        self.bubbleUp(node.node_id, (len(self.heap) - 1), dist)
     
-    def bubbleUp(self, node, dist):
-        self.heap.append(node.node_id) 
-        
-        # For a node at index node_index, its parent is at index (i-1) // 2  
-        node_index = len(self.heap) - 1 
-        parent_node = node_index // 2 
+    def bubbleUp(self, x, i, dist):
+        p = i // 2
+        while i > 0 and dist[self.heap[p]] > dist[x]:
+            self.heap[i] = self.heap[p]
+            self.heap[p] = x
 
-        # Loop while index is valid and parent is greater than node_value
-        while node_index > 0 and dist[self.heap[parent_node]] > dist[node.node_id]:
+            temp = self.nodePosition[self.heap[i]]
+            self.nodePosition[self.heap[i]] = self.nodePosition[self.heap[p]]
+            self.nodePosition[self.heap[p]] = temp
 
-            # Move parent down to current position  
-            self.heap[node_index] = self.heap[parent_node]  
-
-            # Assign x to parent position
-            self.heap[parent_node] = node.node_id
-
-            # Save current index mapping
-            curr = self.nodePosition[self.heap[node_index]]  
-
-            # Swap nodePosition to match heap swap
-            self.nodePosition[self.heap[node_index]] = self.nodePosition[self.heap[parent_node]]
-            self.nodePosition[self.heap[parent_node]] = curr
-
-            # Update 
-            node_index = parent_node            
-            parent_node = node_index // 2
+            i = p
+            p = i // 2
 
     def decreaseKey(self, node, dist):
         i = self.nodePosition[node]
         if i < len(self.heap):
-            self.bubbleUp(node, dist)   
+            self.bubbleUp(node, i, dist)  # O(log(n))
 
 
     def deleteMin(self, dist):  # O(log(n))
@@ -176,6 +171,7 @@ class NetworkRoutingSolver:
         self.prev = [None for _ in range(numNodes)]  # O(n)
 
         self.dist[startNode] = 0
+
         if use_heap:
             priorityQueue = PQHeap(self.network.nodes, self.source)  # O(n)
         else:
