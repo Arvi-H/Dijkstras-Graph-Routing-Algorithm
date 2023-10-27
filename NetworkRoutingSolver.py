@@ -10,7 +10,6 @@ class PriorityQueue(ABC):
     """
     Abstract base class for priority queue implementations. 
     """
-
     def __init__(self):
         """Initializes the priority queue"""
         self.queue = None
@@ -36,6 +35,7 @@ class PriorityQueue(ABC):
         pass
 
 class PQArray(PriorityQueue):
+    # Time: O(1)
     def __init__(self, nodes):
         self.queue = []
         self.makeQueue(nodes)
@@ -45,7 +45,8 @@ class PQArray(PriorityQueue):
         for node in nodes:
             self.insert(node)  
 
-    # Time: O(1)        
+    # Time: O(1)     
+    # Space: O(n)    
     def insert(self, node):
         self.queue.append(node.node_id)  
 
@@ -54,8 +55,8 @@ class PQArray(PriorityQueue):
         if not self.queue:
             return None  # Handle the case when queue is empty
         
+        # O(n) to loop through all nodes
         minIndex = self.queue[0]
-
         for node in self.queue:
             if dist[node] < dist[minIndex]:
                 minIndex = node
@@ -68,96 +69,97 @@ class PQArray(PriorityQueue):
         pass
 
 class PQHeap(PriorityQueue):
+    # Time: O(n)  
+    # Space: O(n)
     def __init__(self, nodes, startNode):
         self.heap = []
         self.nodePosition = []
         self.makeQueue(nodes, startNode)
 
-    def makeQueue(self, nodes, startNode):   
-        self.heap.append(startNode)
-        index = 1
-        for node in nodes:
-            nodeId = node.node_id
-            if nodeId != startNode:
-                self.heap.append(nodeId)
-                self.nodePosition.append(index)
-            else:
-                self.nodePosition.append(0)
+    # Time: O(n)
+    # Space: O(n) 
+    def makeQueue(self, nodes, startNode):
+        self.heap = [startNode] + [node.node_id for node in nodes if node.node_id != startNode]
+        self.nodePosition = [0 if node.node_id == startNode else i for i, node in enumerate(nodes, 1)]
 
-            index += 1
-
-
+    # Time: O(logn) 
     def insert(self, node, dist):
         self.heap.append(node.node_id)
         self.bubbleUp(node.node_id, (len(self.heap) - 1), dist)
     
+    # Time: O(logn)  
     def bubbleUp(self, x, i, dist):
-        p = i // 2
-        while i > 0 and dist[self.heap[p]] > dist[x]:
-            self.heap[i] = self.heap[p]
-            self.heap[p] = x
-
-            temp = self.nodePosition[self.heap[i]]
-            self.nodePosition[self.heap[i]] = self.nodePosition[self.heap[p]]
-            self.nodePosition[self.heap[p]] = temp
-
-            i = p
-            p = i // 2
-
+        while i > 0 and dist[self.heap[i//2]] > dist[x]:
+            # O(1) swaps
+            self.heap[i] = self.heap[i//2]
+            self.heap[i//2] = x
+            
+            self.nodePosition[self.heap[i]], self.nodePosition[self.heap[i//2]] = self.nodePosition[self.heap[i//2]], self.nodePosition[self.heap[i]]
+            
+            i //= 2
+    
+    # Time: O(logn)
     def decreaseKey(self, node, dist):
         i = self.nodePosition[node]
         if i < len(self.heap):
-            self.bubbleUp(node, i, dist)  # O(log(n))
+            self.bubbleUp(node, i, dist)  
 
-
-    def deleteMin(self, dist):  # O(log(n))
-        if len(self.heap) == 0:
+    # Time: O(logn) 
+    def deleteMin(self, dist):   
+        if not self.heap:
             return None
-        else:
-            minDist = self.heap[0]
-            if len(self.heap) > 1:
-                self.heap[0] = self.heap[-1]
-                self.nodePosition[self.heap[-1]] = 0
-                self.heap.pop()
-                self.nodePosition[minDist] = len(self.heap)
-                self.siftdown(self.heap[0], 0, dist)
+        
+        # O(1)  
+        minDist = self.heap[0]
 
-            return minDist
+        if len(self.heap) > 1:
+            # O(logn) siftDown 
+            self.heap[0] = self.heap.pop()
+            self.nodePosition[self.heap[0]] = 0
+            self.siftDown(self.heap[0], 0, dist)
 
-    def siftdown(self, x, i, dist):  # O(log(n))
-        minIndex = self.minchild(i, dist)  # O(1)
-        while minIndex != 0 and dist[self.heap[minIndex]] < dist[x]:
-            self.heap[i] = self.heap[minIndex]
-            self.heap[minIndex] = x
+        return minDist
 
-            temp = self.nodePosition[self.heap[i]]
-            self.nodePosition[self.heap[i]] = self.nodePosition[self.heap[minIndex]]
-            self.nodePosition[self.heap[minIndex]] = temp
+    # Time: O(logn)
+    def siftDown(self, x, i, dist):
+        while True:
+            # O(1)
+            min_index = self.minChild(i, dist)
+            if min_index == -1 or dist[self.heap[min_index]] >= dist[x]:
+                break
+            
+            # O(1) swaps
+            self.heap[i] = self.heap[min_index] 
+            self.heap[min_index] = x
 
-            i = minIndex
-            minIndex = self.minchild(i, dist)
+            self.nodePosition[self.heap[i]], self.nodePosition[self.heap[min_index]] = self.nodePosition[self.heap[min_index]], self.nodePosition[self.heap[i]] 
 
-    def minchild(self, i, dist):
-        firstChildIdx = (2*i)+1
-        secondChildIdx = (2*i)+2
-        if secondChildIdx < len(self.heap) and firstChildIdx < len(self.heap):
-            if dist[self.heap[firstChildIdx]] < dist[self.heap[secondChildIdx]]:
-                return firstChildIdx
-            else:
-                return secondChildIdx
-        elif firstChildIdx < len(self.heap):
-            return firstChildIdx
-        else:
+            i = min_index 
+    
+    # Time: O(1)
+    def minChild(self, i, dist):
+        first = 2*i + 1
+        second = 2*i + 2
+        
+        if first >= len(self.heap):
             return -1
         
+        if second < len(self.heap) and dist[self.heap[first]] > dist[self.heap[second]]:
+            return second
+        else:
+            return first
+
 class NetworkRoutingSolver:
+    # Time: O(1)
     def __init__(self):
         pass
 
+    # Time: O(1)
     def initializeNetwork(self, network):
         assert(type(network) == CS312Graph)
         self.network = network
 
+    # Time: O(V + E), where V is the number of vertices and E is the number of edges in the path
     def getShortestPath(self, destIndex):
         path = []
         length = 0
@@ -179,6 +181,7 @@ class NetworkRoutingSolver:
 
         return {'cost': length, 'path': path}
 
+    # Time: O(V^2) using PQArray, O((V + E) log V) using PQHeap, where V is the number of vertices and E is the number of edges in the network
     def computeShortestPaths( self, srcIndex, use_heap=False ):
         self.source = srcIndex
         t1 = time.time() 
@@ -186,6 +189,7 @@ class NetworkRoutingSolver:
         t2 = time.time()
         return t2 - t1 
 
+    # Time: O(V^2) using PQArray, O((V + E) log V) using PQHeap, where V is the number of vertices and E is the number of edges in the network
     def dijkstra(self, startNode, use_heap):
         numNodes = len(self.network.nodes)
         
@@ -206,4 +210,3 @@ class NetworkRoutingSolver:
                     self.dist[neighbor.dest.node_id] = self.dist[curr] + neighbor.length
                     self.prev[neighbor.dest.node_id] = curr
                     pq.decreaseKey(neighbor.dest.node_id, self.dist)
-                    
