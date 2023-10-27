@@ -1,10 +1,41 @@
 #!/usr/bin/python3
 
 from CS312Graph import *
+from abc import ABC, abstractmethod
+
 import time
 import math
 
-class PQArray:
+class PriorityQueue(ABC):
+    """
+    Abstract base class for priority queue implementations. 
+    """
+
+    def __init__(self):
+        """Initializes the priority queue"""
+        self.queue = None
+
+    @abstractmethod
+    def makeQueue(self, nodes, startNode):
+        """Creates a priority queue from a list of nodes"""
+        pass
+
+    @abstractmethod
+    def insert(self, node, dist):
+        """Inserts a node into the priority queue with a given distance value"""
+        pass
+    
+    @abstractmethod
+    def deleteMin(self, dist):
+        """Deletes the node with the minimum distance value from the priority queue"""
+        pass
+    
+    @abstractmethod
+    def decreaseKey(self, node, dist):
+        """Decreases the distance value of a node and adjusts the priority queue"""
+        pass
+
+class PQArray(PriorityQueue):
     def __init__(self, nodes):
         self.queue = []
         self.makeQueue(nodes)
@@ -36,13 +67,13 @@ class PQArray:
     def decreaseKey(self, node, dist):
         pass
 
-class PQHeap:
+class PQHeap(PriorityQueue):
     def __init__(self, nodes, startNode):
         self.heap = []
         self.nodePosition = []
         self.makeQueue(nodes, startNode)
 
-    def makeQueue(self, nodes, startNode):  # O(n)
+    def makeQueue(self, nodes, startNode):   
         self.heap.append(startNode)
         index = 1
         for node in nodes:
@@ -123,67 +154,56 @@ class NetworkRoutingSolver:
     def __init__(self):
         pass
 
-    def initializeNetwork( self, network ):
-        assert( type(network) == CS312Graph )
+    def initializeNetwork(self, network):
+        assert(type(network) == CS312Graph)
         self.network = network
 
-    def getShortestPath( self, destIndex ):
-        self.dest = destIndex
-        path_edges = []
-        total_length = 0
-        currIndex = self.dest
+    def getShortestPath(self, destIndex):
+        path = []
+        length = 0
+        i = destIndex
 
-        while currIndex != self.source:  # Worst case: O(n)
-            prevIndex = self.prev[currIndex]
-            if prevIndex is not None:
-                prevNode = self.network.nodes[self.prev[currIndex]]
-                neighbors = prevNode.neighbors
-                selectedEdge = None
-                for neighbor in neighbors:
-                    if neighbor.dest.node_id == currIndex:
-                        selectedEdge = neighbor
-
-                if not (selectedEdge is None):
-                    path_edges.insert(0, (selectedEdge.src.loc, selectedEdge.dest.loc, '{:.0f}'.format(selectedEdge.length)))
-                    total_length += selectedEdge.length
+        while i != self.source:
+            j = self.prev[i]
+            if j is not None:
+                edge = next(e for e in self.network.nodes[j].neighbors if e.dest.node_id == i)
+      
+                if edge:
+                    path.insert(0, (edge.src.loc, edge.dest.loc, '{:.0f}'.format(edge.length)))
+                    length += edge.length
                 else:
-                    print("Something is wrong, line 33")
+                    print("UNREACHABLE")
+                    length = math.inf
+                    break
+                i = j
 
-                currIndex = prevNode.node_id
-            else:
-                total_length = math.inf
-                break
-
-        return {'cost': total_length, 'path': path_edges}
+        return {'cost': length, 'path': path}
 
     def computeShortestPaths( self, srcIndex, use_heap=False ):
         self.source = srcIndex
-        t1 = time.time()
-        self.dist = []
-        self.prev = []
+        t1 = time.time() 
         self.dijkstra(self.source, use_heap)
         t2 = time.time()
-        return t2 - t1
- 
-    def dijkstra(self, startNode, use_heap):  # Heap: O(nlog(n)), Array: O(n^2)
-        numNodes = len(self.network.nodes)
-        self.dist = [math.inf for _ in range(numNodes)]  # O(n)
-        self.prev = [None for _ in range(numNodes)]  # O(n)
+        return t2 - t1 
 
+    def dijkstra(self, startNode, use_heap):
+        numNodes = len(self.network.nodes)
+        
+        self.dist = [math.inf] * numNodes
+        self.prev = [None] * numNodes
         self.dist[startNode] = 0
 
-        if use_heap:
-            priorityQueue = PQHeap(self.network.nodes, self.source)  # O(n)
-        else:
-            priorityQueue = PQArray(self.network.nodes)  # O(n)
+        pq = PQHeap(self.network.nodes, startNode) if use_heap else PQArray(self.network.nodes)
 
-        while numNodes > 0:  # O(n)
-            currNode = priorityQueue.deleteMin(self.dist)  # O(log n) for heap, O(n) for array
+        while numNodes > 0:
+
+            curr = pq.deleteMin(self.dist)
             numNodes -= 1
-            neighbors = self.network.nodes[currNode].neighbors
-            for neighbor in neighbors:  # O(3)
-                neighborID = neighbor.dest.node_id
-                if self.dist[neighborID] > (self.dist[currNode] + neighbor.length):
-                    self.dist[neighborID] = self.dist[currNode] + neighbor.length
-                    self.prev[neighborID] = currNode
-                    priorityQueue.decreaseKey(neighborID, self.dist)  # O(log(n)) for heap, O(1) for array
+
+            for neighbor in self.network.nodes[curr].neighbors:
+            
+                if self.dist[neighbor.dest.node_id] > self.dist[curr] + neighbor.length:
+                    self.dist[neighbor.dest.node_id] = self.dist[curr] + neighbor.length
+                    self.prev[neighbor.dest.node_id] = curr
+                    pq.decreaseKey(neighbor.dest.node_id, self.dist)
+                    
